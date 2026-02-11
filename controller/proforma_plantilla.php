@@ -117,6 +117,18 @@ class proforma_plantilla extends ventas_imprimir
                 $es_ultima = $this->es_ultima_pagina($lineas, $linea_actual, $lppag);
                 $this->generar_pdf_lineas_plantilla($pdf_doc, $lineas, $linea_actual, $lppag, $lineas_iva, $es_ultima);
 
+                /// ¿Última página? Mostramos fecha de validez y forma de pago
+                if ($linea_actual == count($lineas)) {
+                    if ($this->documento->finoferta) {
+                        $texto_pago = "\n<b>" . ucfirst(FS_PRESUPUESTO) . ' válido hasta:</b> ' . $this->documento->finoferta;
+                        $pdf_doc->pdf->ezText($texto_pago, 9);
+                    }
+
+                    if ($this->impresion['print_formapago']) {
+                        $this->generar_pdf_forma_pago($pdf_doc);
+                    }
+                }
+
                 $pdf_doc->set_y(80);
                 $pdf_doc->pdf->addText(10, 10, 8, $pdf_doc->center_text('Página ' . $pagina . '/' . $this->numpaginas, 250));
                 $pagina++;
