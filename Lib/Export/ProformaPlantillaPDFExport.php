@@ -139,7 +139,7 @@ class ProformaPlantillaPDFExport extends PDFExport
             if (empty($line->codimpuesto) || empty($line->pvptotal)) {
                 continue;
             }
-            if (property_exists($line, 'suplido') && $line->suplido) {
+            if ($line->suplido) {
                 continue;
             }
 
