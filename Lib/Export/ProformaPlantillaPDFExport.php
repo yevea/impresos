@@ -157,8 +157,8 @@ class ProformaPlantillaPDFExport extends PDFExport
             $taxSubtotals[$key]['totalrecargo'] += $line->pvptotal * $eud * $line->recargo / 100;
         }
 
+        $impuesto = new Impuesto();
         foreach ($taxSubtotals as $tax) {
-            $impuesto = new Impuesto();
             $taxTitle = $impuesto->load($tax['codimpuesto'])
                 ? $impuesto->descripcion
                 : $this->i18n->trans('tax') . ' ' . $tax['iva'] . '%';
