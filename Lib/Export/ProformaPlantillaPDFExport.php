@@ -199,12 +199,10 @@ class ProformaPlantillaPDFExport extends PDFExport
     protected function insertBusinessDocFooterCustom(BusinessDocument $model): void
     {
         if (!empty($model->observaciones)) {
-            $this->newPage();
             $this->pdf->ezText(
-                $this->i18n->trans('observations') . "\n",
+                "\n" . $this->i18n->trans('observations') . "\n",
                 self::FONT_SIZE
             );
-            $this->newLine();
             $this->pdf->ezText(Tools::fixHtml($model->observaciones) . "\n", self::FONT_SIZE);
         }
 
