@@ -1,6 +1,6 @@
 # Impresos - Plugin de Factura Proforma con Totales Integrados
 
-Plugin para [FacturaScripts](https://www.facturascripts.com/) 2024+.
+Plugin para [FacturaScripts](https://www.facturascripts.com/) 2025+.
 
 Plugin que añade una plantilla de factura proforma para presupuestos con totales integrados en la tabla de líneas. Al exportar un presupuesto como PDF, este plugin proporciona un formato alternativo donde los totales (Dto., Neto, IVA, Total) se muestran como últimas filas dentro de la tabla de líneas, en lugar de al pie de la página.
 
@@ -8,7 +8,7 @@ Esto es crucial porque los clientes ya no suelen imprimir los presupuestos y cua
 
 ## Requisitos
 
-- [FacturaScripts](https://www.facturascripts.com/) versión **2024** o superior
+- [FacturaScripts](https://www.facturascripts.com/) versión **2025** o superior
 - PHP **8.0** o superior
 
 ## Instalación
