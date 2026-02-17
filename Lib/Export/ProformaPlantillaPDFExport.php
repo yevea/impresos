@@ -68,13 +68,12 @@ class ProformaPlantillaPDFExport extends PDFExport
         }
 
         if (!empty($model->observaciones)) {
-            $this->newPage();
-            $this->pdf->ezText($this->i18n->trans('observations') . "\n", self::FONT_SIZE);
+            $this->pdf->ezText("\n" . $this->i18n->trans('observations') . "\n", self::FONT_SIZE);
             $this->newLine();
             $this->pdf->ezText(Tools::fixHtml($model->observaciones) . "\n", self::FONT_SIZE);
         }
 
-        $this->newPage();
+        $this->pdf->ezText("\n");
 
         // taxes
         $taxHeaders = [
