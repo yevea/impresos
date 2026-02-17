@@ -22,12 +22,11 @@ namespace FacturaScripts\Plugins\Impresos\Lib\Export;
 use FacturaScripts\Core\Model\Base\BusinessDocument;
 use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Lib\Export\PDFExport;
-use FacturaScripts\Dinamic\Model\Impuesto;
 
 /**
- * Custom PDF export for PresupuestoCliente that integrates totals
- * (discount, net, VAT, total) as rows inside the line items table,
- * instead of showing them in the page footer.
+ * Custom PDF export for PresupuestoCliente that places the totals
+ * summary table (Divisa, Neto, Impuestos, Total) right after the
+ * product items table, instead of at the bottom of the page.
  */
 class ProformaPlantillaPDFExport extends PDFExport
 {
@@ -50,160 +49,110 @@ class ProformaPlantillaPDFExport extends PDFExport
 
         $this->insertHeader($model->idempresa);
         $this->insertBusinessDocHeader($model);
-        $this->insertBusinessDocBodyWithTotals($model);
-        $this->insertBusinessDocFooterCustom($model);
+        $this->insertBusinessDocBody($model);
+        $this->insertBusinessDocFooter($model);
 
         return false;
     }
 
     /**
-     * Inserts lines with integrated totals at the end of the table.
+     * Overrides the default footer to place the totals summary table
+     * right after the product items table, instead of jumping to the
+     * bottom of the page (INVOICE_TOTALS_Y).
      */
-    protected function insertBusinessDocBodyWithTotals(BusinessDocument $model): void
+    protected function insertBusinessDocFooter($model)
     {
-        $headers = [];
-        $tableOptions = [
-            'cols' => [],
+        if ($model->modelClassName() !== 'PresupuestoCliente') {
+            parent::insertBusinessDocFooter($model);
+            return;
+        }
+
+        if (!empty($model->observaciones)) {
+            $this->newPage();
+            $this->pdf->ezText($this->i18n->trans('observations') . "\n", self::FONT_SIZE);
+            $this->newLine();
+            $this->pdf->ezText(Tools::fixHtml($model->observaciones) . "\n", self::FONT_SIZE);
+        }
+
+        $this->newPage();
+
+        // taxes
+        $taxHeaders = [
+            'tax' => $this->i18n->trans('tax'),
+            'taxbase' => $this->i18n->trans('tax-base'),
+            'taxp' => $this->i18n->trans('percentage'),
+            'taxamount' => $this->i18n->trans('amount'),
+            'taxsurchargep' => $this->i18n->trans('re'),
+            'taxsurcharge' => $this->i18n->trans('amount')
+        ];
+        $taxRows = $this->getTaxesRows($model);
+        $taxTableOptions = [
+            'cols' => [
+                'tax' => ['justification' => 'right'],
+                'taxbase' => ['justification' => 'right'],
+                'taxp' => ['justification' => 'right'],
+                'taxamount' => ['justification' => 'right'],
+                'taxsurchargep' => ['justification' => 'right'],
+                'taxsurcharge' => ['justification' => 'right']
+            ],
             'shadeCol' => [0.95, 0.95, 0.95],
             'shadeHeadingCol' => [0.95, 0.95, 0.95],
             'width' => $this->tableWidth
         ];
-
-        foreach ($this->getLineHeaders() as $key => $value) {
-            $headers[$key] = $value['title'];
-            if (in_array($value['type'], ['number', 'percentage'], true)) {
-                $tableOptions['cols'][$key] = ['justification' => 'right'];
-            }
+        if (count($taxRows) > 1) {
+            $this->removeEmptyCols($taxRows, $taxHeaders, Tools::number(0));
+            $this->pdf->ezTable($taxRows, $taxHeaders, '', $taxTableOptions);
+            $this->pdf->ezText("\n");
         }
 
-        $tableData = [];
-        foreach ($model->getLines() as $line) {
-            $data = [];
-            foreach ($this->getLineHeaders() as $key => $value) {
-                if (property_exists($line, 'mostrar_precio')
-                    && $line->mostrar_precio === false
-                    && in_array($key, ['pvpunitario', 'dtopor', 'dtopor2', 'pvptotal', 'iva', 'recargo', 'irpf'], true)) {
-                    continue;
-                }
+        // subtotals — placed at the current Y position (right after items)
+        $headers = [
+            'currency' => $this->i18n->trans('currency'),
+            'subtotal' => $this->i18n->trans('subtotal'),
+            'dto' => $this->i18n->trans('global-dto'),
+            'dto-2' => $this->i18n->trans('global-dto-2'),
+            'net' => $this->i18n->trans('net'),
+            'taxes' => $this->i18n->trans('taxes'),
+            'totalSurcharge' => $this->i18n->trans('re'),
+            'totalIrpf' => $this->i18n->trans('retention'),
+            'totalSupplied' => $this->i18n->trans('supplied-amount'),
+            'total' => $this->i18n->trans('total')
+        ];
+        $rows = [
+            [
+                'currency' => $this->getDivisaName($model->coddivisa),
+                'subtotal' => Tools::number($model->netosindto != $model->neto ? $model->netosindto : 0),
+                'dto' => Tools::number($model->dtopor1) . '%',
+                'dto-2' => Tools::number($model->dtopor2) . '%',
+                'net' => Tools::number($model->neto),
+                'taxes' => Tools::number($model->totaliva),
+                'totalSurcharge' => Tools::number($model->totalrecargo),
+                'totalIrpf' => Tools::number(0 - $model->totalirpf),
+                'totalSupplied' => Tools::number($model->totalsuplidos),
+                'total' => Tools::number($model->total)
+            ]
+        ];
+        $this->removeEmptyCols($rows, $headers, Tools::number(0));
+        $tableOptions = [
+            'cols' => [
+                'subtotal' => ['justification' => 'right'],
+                'dto' => ['justification' => 'right'],
+                'dto-2' => ['justification' => 'right'],
+                'net' => ['justification' => 'right'],
+                'taxes' => ['justification' => 'right'],
+                'totalSurcharge' => ['justification' => 'right'],
+                'totalIrpf' => ['justification' => 'right'],
+                'totalSupplied' => ['justification' => 'right'],
+                'total' => ['justification' => 'right']
+            ],
+            'shadeCol' => [0.95, 0.95, 0.95],
+            'shadeHeadingCol' => [0.95, 0.95, 0.95],
+            'width' => $this->tableWidth
+        ];
+        $this->pdf->ezTable($rows, $headers, '', $tableOptions);
 
-                if ($key === 'referencia') {
-                    $data[$key] = empty($line->{$key})
-                        ? Tools::fixHtml($line->descripcion)
-                        : Tools::fixHtml($line->{$key} . ' - ' . $line->descripcion);
-                } elseif ($key === 'cantidad' && property_exists($line, 'mostrar_cantidad')) {
-                    $data[$key] = $line->mostrar_cantidad ? $line->{$key} : '';
-                } elseif ($value['type'] === 'percentage') {
-                    $data[$key] = Tools::number($line->{$key}) . '%';
-                } elseif ($value['type'] === 'number') {
-                    $data[$key] = Tools::number($line->{$key});
-                } else {
-                    $data[$key] = $line->{$key};
-                }
-            }
-            $tableData[] = $data;
-        }
-
-        // Add separator row
-        $emptyRow = [];
-        foreach (array_keys($headers) as $key) {
-            $emptyRow[$key] = '';
-        }
-        $tableData[] = $emptyRow;
-
-        // Add discount row if applicable
-        $dtopor1 = $model->dtopor1 ?? 0;
-        $dtopor2 = $model->dtopor2 ?? 0;
-        if ($dtopor1 != 0 || $dtopor2 != 0) {
-            $dtoText = '';
-            if ($dtopor1 != 0) {
-                $dtoText .= Tools::number($dtopor1) . '%';
-            }
-            if ($dtopor2 != 0) {
-                $dtoText .= ($dtoText ? ' + ' : '') . Tools::number($dtopor2) . '%';
-            }
-            $dtoRow = $emptyRow;
-            $dtoRow['referencia'] = $this->i18n->trans('global-dto') . ': ' . $dtoText;
-            $tableData[] = $dtoRow;
-        }
-
-        // Add net row
-        $netRow = $emptyRow;
-        $netRow['referencia'] = $this->i18n->trans('net');
-        $netRow['pvptotal'] = Tools::number($model->neto);
-        $tableData[] = $netRow;
-
-        // Add tax rows
-        $eud = $model->getEUDiscount();
-        $taxSubtotals = [];
-        foreach ($model->getLines() as $line) {
-            if (empty($line->codimpuesto) || empty($line->pvptotal)) {
-                continue;
-            }
-            if ($line->suplido) {
-                continue;
-            }
-
-            $key = $line->codimpuesto . '_' . $line->iva . '_' . $line->recargo;
-            if (!isset($taxSubtotals[$key])) {
-                $taxSubtotals[$key] = [
-                    'codimpuesto' => $line->codimpuesto,
-                    'iva' => $line->iva,
-                    'recargo' => $line->recargo,
-                    'totaliva' => 0,
-                    'totalrecargo' => 0,
-                ];
-            }
-            $taxSubtotals[$key]['totaliva'] += $line->pvptotal * $eud * $line->iva / 100;
-            $taxSubtotals[$key]['totalrecargo'] += $line->pvptotal * $eud * $line->recargo / 100;
-        }
-
-        $impuesto = new Impuesto();
-        foreach ($taxSubtotals as $tax) {
-            $taxTitle = $impuesto->load($tax['codimpuesto'])
-                ? $impuesto->descripcion
-                : $this->i18n->trans('tax') . ' ' . $tax['iva'] . '%';
-
-            $taxRow = $emptyRow;
-            $taxRow['referencia'] = $taxTitle;
-            $taxAmount = Tools::number($tax['totaliva']);
-            if ($tax['totalrecargo'] != 0) {
-                $taxAmount .= ' (' . $this->i18n->trans('re') . ' ' . $tax['recargo'] . '%: '
-                    . Tools::number($tax['totalrecargo']) . ')';
-            }
-            $taxRow['pvptotal'] = $taxAmount;
-            $tableData[] = $taxRow;
-        }
-
-        // Add IRPF row if applicable
-        if ($model->totalirpf != 0) {
-            $irpfRow = $emptyRow;
-            $irpfRow['referencia'] = $this->i18n->trans('irpf') . ' ' . Tools::number($model->irpf) . '%';
-            $irpfRow['pvptotal'] = Tools::number(0 - $model->totalirpf);
-            $tableData[] = $irpfRow;
-        }
-
-        // Add total row
-        $totalRow = $emptyRow;
-        $totalRow['referencia'] = $this->i18n->trans('total');
-        $totalRow['pvptotal'] = Tools::number($model->total);
-        $tableData[] = $totalRow;
-
-        $this->removeEmptyCols($tableData, $headers, Tools::number(0));
-        $this->pdf->ezTable($tableData, $headers, '', $tableOptions);
-    }
-
-    /**
-     * Custom footer: shows observations and payment method, but skips the
-     * standard totals table since totals are already in the lines table.
-     */
-    protected function insertBusinessDocFooterCustom(BusinessDocument $model): void
-    {
-        if (!empty($model->observaciones)) {
-            $this->pdf->ezText(
-                "\n" . $this->i18n->trans('observations') . "\n",
-                self::FONT_SIZE
-            );
-            $this->pdf->ezText(Tools::fixHtml($model->observaciones) . "\n", self::FONT_SIZE);
+        if (isset($model->codcliente)) {
+            $this->insertInvoicePayMethod($model);
         }
 
         if (property_exists($model, 'finoferta') && !empty($model->finoferta)) {
@@ -211,10 +160,6 @@ class ProformaPlantillaPDFExport extends PDFExport
                 "\n" . $this->i18n->trans('expiration') . ': ' . $model->finoferta,
                 self::FONT_SIZE
             );
-        }
-
-        if (isset($model->codcliente)) {
-            $this->insertInvoicePayMethod($model);
         }
 
         if (!empty($this->format->texto)) {
