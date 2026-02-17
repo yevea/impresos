@@ -19,16 +19,19 @@
 
 namespace FacturaScripts\Plugins\Impresos\Lib\Export;
 
-use FacturaScripts\Core\Model\Base\BusinessDocument;
 use FacturaScripts\Core\Tools;
-use FacturaScripts\Dinamic\Lib\Export\PDFExport;
+use FacturaScripts\Core\Lib\Export\PDFExport as CorePDFExport;
 
 /**
  * Custom PDF export for PresupuestoCliente that places the totals
  * summary table (Divisa, Neto, Impuestos, Total) right after the
  * product items table, instead of at the bottom of the page.
+ *
+ * This class overrides the core PDFExport through the FacturaScripts
+ * Dinamic layer, so it is automatically used for all PDF exports.
+ * Non-PresupuestoCliente documents delegate to the parent behavior.
  */
-class ProformaPlantillaPDFExport extends PDFExport
+class PDFExport extends CorePDFExport
 {
     public function addBusinessDocPage($model): bool
     {
