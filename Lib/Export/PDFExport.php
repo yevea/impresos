@@ -70,12 +70,6 @@ class PDFExport extends CorePDFExport
             return;
         }
 
-        if (!empty($model->observaciones)) {
-            $this->pdf->ezText("\n" . $this->i18n->trans('observations') . "\n", self::FONT_SIZE);
-            $this->newLine();
-            $this->pdf->ezText(Tools::fixHtml($model->observaciones) . "\n", self::FONT_SIZE);
-        }
-
         $this->pdf->ezText("\n");
 
         // taxes
@@ -99,6 +93,8 @@ class PDFExport extends CorePDFExport
             ],
             'shadeCol' => [0.95, 0.95, 0.95],
             'shadeHeadingCol' => [0.95, 0.95, 0.95],
+            'innerLineThickness' => 0.1,
+            'outerLineThickness' => 0.1,
             'width' => $this->tableWidth
         ];
         if (count($taxRows) > 1) {
@@ -131,7 +127,7 @@ class PDFExport extends CorePDFExport
                 'totalSurcharge' => Tools::number($model->totalrecargo),
                 'totalIrpf' => Tools::number(0 - $model->totalirpf),
                 'totalSupplied' => Tools::number($model->totalsuplidos),
-                'total' => Tools::number($model->total)
+                'total' => '<b>' . Tools::number($model->total) . '</b>'
             ]
         ];
         $this->removeEmptyCols($rows, $headers, Tools::number(0));
@@ -149,6 +145,8 @@ class PDFExport extends CorePDFExport
             ],
             'shadeCol' => [0.95, 0.95, 0.95],
             'shadeHeadingCol' => [0.95, 0.95, 0.95],
+            'innerLineThickness' => 0.1,
+            'outerLineThickness' => 0.1,
             'width' => $this->tableWidth
         ];
         $this->pdf->ezTable($rows, $headers, '', $tableOptions);
@@ -167,5 +165,19 @@ class PDFExport extends CorePDFExport
         if (!empty($this->format->texto)) {
             $this->pdf->ezText("\n" . Tools::fixHtml($this->format->texto), self::FONT_SIZE);
         }
+
+        // observations at the end
+        if (!empty($model->observaciones)) {
+            $this->pdf->ezText("\n" . $this->i18n->trans('observations') . "\n", self::FONT_SIZE);
+            $this->newLine();
+            $this->pdf->ezText(Tools::fixHtml($model->observaciones) . "\n", self::FONT_SIZE);
+        }
+    }
+
+    protected function newLine()
+    {
+        $posY = $this->pdf->y + 5;
+        $this->pdf->setLineStyle(0.1);
+        $this->pdf->line(self::CONTENT_X, $posY, $this->tableWidth + self::CONTENT_X, $posY);
     }
 }
