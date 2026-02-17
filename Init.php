@@ -19,18 +19,12 @@
 
 namespace FacturaScripts\Plugins\Impresos;
 
-use FacturaScripts\Core\Lib\ExportManager;
 use FacturaScripts\Core\Template\InitClass;
 
 class Init extends InitClass
 {
     public function init(): void
     {
-        ExportManager::addOptionModel(
-            'ProformaPlantillaPDFExport',
-            'PDF',
-            'PresupuestoCliente'
-        );
     }
 
     public function update(): void
